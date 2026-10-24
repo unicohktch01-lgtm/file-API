@@ -1,97 +1,313 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EditorAPI テスト</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Code Editor</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;height:100vh;overflow:hidden;background:#1e1e1e;color:#ddd;font:14px Arial,sans-serif}
+button{background:#333;color:#eee;border:1px solid #484848;padding:7px 10px;cursor:pointer;border-radius:4px}
+button:hover{background:#484848}
+.toolbar{height:48px;display:flex;align-items:center;gap:6px;padding:0 10px;background:#252526;flex-wrap:wrap}
+.brand{font-weight:bold;margin-right:10px}
+#layout{display:flex;height:calc(100vh - 72px)}
+#sidebar{width:240px;min-width:130px;background:#252526;border-right:1px solid #111;overflow:auto}
+.side-title{padding:13px;font-size:12px;color:#aaa;font-weight:bold}
+.tree-row{display:flex;gap:6px;padding:6px 8px;cursor:pointer;white-space:nowrap;overflow:hidden}
+.tree-row:hover{background:#333}
+.tree-row.selected{background:#37373d}
+.tree-name{overflow:hidden;text-overflow:ellipsis}
+#workspace{display:flex;flex:1;flex-direction:column;min-width:0}
+#tabs{height:38px;display:flex;overflow-x:auto;background:#252526;flex-shrink:0}
+.tab{display:flex;align-items:center;gap:10px;padding:0 12px;cursor:pointer;border-right:1px solid #111;white-space:nowrap}
+.tab.active{background:#1e1e1e;border-top:2px solid #4daafc}
+#editor{flex:1;width:100%;min-height:0;resize:none;border:0;outline:none;padding:16px;background:#1e1e1e;color:#d4d4d4;font:14px/1.6 Consolas,monospace;tab-size:2;white-space:pre}
+#empty{flex:1;display:grid;place-items:center;color:#777;text-align:center}
+#status{height:24px;padding:4px 10px;background:#007acc;color:white;font-size:12px}
+@media(max-width:600px){#sidebar{width:130px;min-width:110px}.brand{display:none}button{padding:6px}}
+</style>
 </head>
 <body>
-  <h2>ファイル操作API テスト</h2>
+<div class="toolbar">
+  <span class="brand">Mini Editor</span>
+  <button id="open">📄 ファイルを開く</button>
+  <button id="folder">📁 フォルダを開く</button>
+  <button id="new">＋ 新規</button>
+  <button id="save">💾 保存</button>
+  <button id="saveAs">別名保存</button>
+</div>
 
-  <button id="open">ファイルを開く</button>
-  <button id="folder">フォルダを開く</button>
-  <button id="save">名前を付けて保存</button>
-  <button id="overwrite">上書き保存</button>
+<div id="layout">
+  <aside id="sidebar">
+    <div class="side-title" id="folderName">エクスプローラー</div>
+    <div id="tree"></div>
+  </aside>
+  <main id="workspace">
+    <div id="tabs"></div>
+    <textarea id="editor" spellcheck="false" style="display:none"></textarea>
+    <div id="empty"><div><h2>Mini Code Editor</h2><p>ファイルまたはフォルダを開いてください。</p></div></div>
+  </main>
+</div>
+<div id="status">準備完了</div>
 
-  <p id="status">準備完了</p>
-  <textarea id="editor" rows="18" cols="80"
-    placeholder="ここにコードを入力"></textarea>
+<script>
+const EditorAPI=(()=>{
+  const $=id=>document.getElementById(id);
+  const editor=$("editor");
+  const tabs=new Map();
+  let active=null,nextId=1,rootHandle=null,treeData=[];
 
-  <script src="./editor-api.js"></script>
-  <script>
-    const editor = document.getElementById("editor");
-    const status = document.getElementById("status");
+  function status(text){$("status").textContent=text}
+  function current(){return tabs.get(active)}
+  function ext(name){return name.split(".").pop().toLowerCase()}
+  function icon(name,dir=false){
+    if(dir)return "📁";
+    return ({html:"🌐",css:"🎨",js:"🟨",json:"📋",py:"🐍",md:"📝"})[ext(name)]||"📄";
+  }
 
-    let currentHandle = null;
-
-    document.getElementById("open").onclick = async () => {
-      try {
-        const result = await EditorAPI.openFile();
-
-        if (!result) return;
-
-        editor.value = result.text;
-        currentHandle = result.handle || null;
-        status.textContent = "開いたファイル: " + result.name;
-      } catch (error) {
-        status.textContent = "読み込みエラー: " + error.message;
-      }
+  function createTab(data={}){
+    const id=nextId++;
+    const content=data.content??"";
+    const tab={
+      id,name:data.name||"untitled.js",
+      path:data.path||data.name||"untitled.js",
+      handle:data.handle||null,content,saved:content,dirty:false
     };
+    tabs.set(id,tab);
+    activate(id);
+    return tab;
+  }
 
-    document.getElementById("folder").onclick = async () => {
-      try {
-        const result = await EditorAPI.openFolder();
+  function activate(id){
+    const tab=tabs.get(id);
+    if(!tab)return;
+    active=id;
+    editor.style.display="block";
+    $("empty").style.display="none";
+    editor.value=tab.content;
+    renderTabs();
+    renderTree();
+    updateStatus();
+  }
 
-        if (!result) return;
+  function updateStatus(){
+    const tab=current();
+    status(tab?`${tab.path} | ${tab.dirty?"未保存":"保存済み"}`:"準備完了");
+  }
 
-        status.textContent =
-          result.name + "： " + result.files.length + " ファイル";
+  editor.addEventListener("input",()=>{
+    const tab=current();
+    if(!tab)return;
+    tab.content=editor.value;
+    tab.dirty=tab.content!==tab.saved;
+    renderTabs();
+    updateStatus();
+  });
 
-        console.table(result.files.map(file => ({
-          name: file.name,
-          path: file.path || file.name,
-          size: file.size
-        })));
-      } catch (error) {
-        status.textContent = "フォルダエラー: " + error.message;
+  function renderTabs(){
+    const box=$("tabs");
+    box.replaceChildren();
+    for(const tab of tabs.values()){
+      const el=document.createElement("div");
+      el.className="tab"+(tab.id===active?" active":"");
+      const name=document.createElement("span");
+      name.textContent=(tab.dirty?"● ":"")+tab.name;
+      const close=document.createElement("span");
+      close.textContent=" ×";
+      close.title="タブを閉じる";
+      el.append(name,close);
+      el.onclick=()=>activate(tab.id);
+      close.onclick=e=>{
+        e.stopPropagation();
+        if(tab.dirty&&!confirm("未保存の変更があります。閉じますか？"))return;
+        tabs.delete(tab.id);
+        if(active===tab.id){
+          const next=tabs.keys().next();
+          if(next.done){
+            active=null;editor.value="";
+            editor.style.display="none";
+            $("empty").style.display="grid";
+            renderTabs();renderTree();updateStatus();
+          }else activate(next.value);
+        }else renderTabs();
+      };
+      box.append(el);
+    }
+  }
+
+  async function openHandle(handle,path=handle.name){
+    for(const tab of tabs.values()){
+      if(tab.handle===handle){activate(tab.id);return}
+    }
+    const file=await handle.getFile();
+    createTab({name:file.name,path,content:await file.text(),handle});
+    status("開きました: "+path);
+  }
+
+  async function openFile(){
+    try{
+      if(window.showOpenFilePicker){
+        const handles=await window.showOpenFilePicker({multiple:true});
+        for(const h of handles)await openHandle(h);
+      }else{
+        const input=document.createElement("input");
+        input.type="file";input.multiple=true;
+        input.onchange=async()=>{
+          for(const f of input.files){
+            createTab({name:f.name,path:f.name,content:await f.text()});
+          }
+        };
+        input.click();
       }
-    };
+    }catch(e){if(e.name!=="AbortError")status("エラー: "+e.message)}
+  }
 
-    document.getElementById("save").onclick = async () => {
-      try {
-        const result = await EditorAPI.saveFile(editor.value, {
-          suggestedName: "main.js",
-          mimeType: "text/javascript"
-        });
+  async function scan(dir,path="",target=[]){
+    for await(const [name,h] of dir.entries()){
+      const full=path?path+"/"+name:name;
+      if(h.kind==="directory"){
+        const node={name,path:full,dir:true,handle:h,children:[]};
+        target.push(node);
+        await scan(h,full,node.children);
+      }else target.push({name,path:full,handle:h});
+    }
+    target.sort((a,b)=>Number(!!b.dir)-Number(!!a.dir)||a.name.localeCompare(b.name));
+    return target;
+  }
 
-        if (!result) return;
-
-        currentHandle = result.handle || null;
-        status.textContent = "保存完了: " + result.name;
-      } catch (error) {
-        status.textContent = "保存エラー: " + error.message;
+  async function openFolder(){
+    try{
+      if(!window.showDirectoryPicker){
+        const input=document.createElement("input");
+        input.type="file";input.multiple=true;
+        input.setAttribute("webkitdirectory","");
+        input.onchange=()=>{
+          treeData=[];
+          const map=new Map();
+          for(const file of input.files){
+            const parts=file.webkitRelativePath.split("/");
+            let list=treeData,path="";
+            parts.forEach((part,i)=>{
+              path=path?path+"/"+part:part;
+              let node=map.get(path);
+              if(!node){
+                node=i===parts.length-1?
+                  {name:part,path,file}:
+                  {name:part,path,dir:true,children:[]};
+                list.push(node);map.set(path,node);
+              }
+              if(node.dir)list=node.children;
+            });
+          }
+          $("folderName").textContent=input.files[0]?.webkitRelativePath.split("/")[0]||"エクスプローラー";
+          renderTree();
+          status("フォルダを読み込みました（読み取り専用）");
+        };
+        input.click();return;
       }
-    };
+      rootHandle=await window.showDirectoryPicker({mode:"readwrite"});
+      treeData=await scan(rootHandle);
+      $("folderName").textContent=rootHandle.name;
+      renderTree();
+      status("フォルダを開きました: "+rootHandle.name);
+    }catch(e){if(e.name!=="AbortError")status("エラー: "+e.message)}
+  }
 
-    document.getElementById("overwrite").onclick = async () => {
-      if (!currentHandle) {
-        status.textContent = "先に対応ブラウザでファイルを開いてね。";
-        return;
-      }
-
-      try {
-        const result = await EditorAPI.saveFile(editor.value, {
-          handle: currentHandle
-        });
-
-        if (result) {
-          status.textContent = "上書き保存完了: " + result.name;
+  function renderTree(){
+    const box=$("tree");
+    box.replaceChildren();
+    function draw(nodes,depth=0){
+      for(const node of nodes){
+        const row=document.createElement("div");
+        row.className="tree-row";
+        row.style.paddingLeft=(8+depth*14)+"px";
+        const label=document.createElement("span");
+        label.textContent=icon(node.name,!!node.dir)+" "+node.name;
+        row.append(label);
+        if(node.dir){
+          node.collapsed=!!node.collapsed;
+          row.onclick=()=>{node.collapsed=!node.collapsed;renderTree()};
+          box.append(row);
+          if(!node.collapsed)draw(node.children,depth+1);
+        }else{
+          if([...tabs.values()].some(t=>t.path===node.path&&t.id===active))row.classList.add("selected");
+          row.onclick=async()=>{
+            try{
+              if(node.handle)await openHandle(node.handle,node.path);
+              else if(node.file)createTab({name:node.name,path:node.path,content:await node.file.text()});
+            }catch(e){status("読み込みエラー: "+e.message)}
+          };
+          box.append(row);
         }
-      } catch (error) {
-        status.textContent = "保存エラー: " + error.message;
       }
-    };
-  </script>
+    }
+    draw(treeData);
+  }
+
+  function download(tab){
+    const blob=new Blob([tab.content],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=tab.name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    tab.saved=tab.content;tab.dirty=false;
+    renderTabs();updateStatus();
+    status("ダウンロードしました: "+tab.name);
+  }
+
+  async function saveFile(saveAs=false){
+    const tab=current();
+    if(!tab){status("保存するファイルがありません");return}
+    try{
+      let handle=tab.handle;
+      if(saveAs)handle=null;
+      if(!handle&&rootHandle&&!saveAs){
+        const name=tab.name.trim();
+        if(!name||name.includes("/")||name.includes("\\")){
+          status("ファイル名が正しくありません");return;
+        }
+        handle=await rootHandle.getFileHandle(name,{create:true});
+      }
+      if(!handle&&window.showSaveFilePicker){
+        handle=await window.showSaveFilePicker({suggestedName:tab.name});
+      }
+      if(!handle){download(tab);return}
+      const writable=await handle.createWritable();
+      await writable.write(tab.content);
+      await writable.close();
+      tab.handle=handle;tab.name=handle.name;
+      tab.path=saveAs?handle.name:tab.path;
+      tab.saved=tab.content;tab.dirty=false;
+      renderTabs();renderTree();updateStatus();
+      status("保存しました: "+tab.name);
+    }catch(e){if(e.name!=="AbortError")status("保存エラー: "+e.message)}
+  }
+
+  function newFile(){
+    const name=prompt("ファイル名","untitled.js");
+    if(name===null)return;
+    const safe=name.trim();
+    if(!safe||safe.includes("/")||safe.includes("\\")){
+      status("ファイル名が正しくありません");return;
+    }
+    createTab({name:safe,path:safe});
+  }
+
+  document.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){
+      e.preventDefault();saveFile();
+    }
+  });
+
+  return {openFile,openFolder,saveFile,newFile};
+})();
+
+$("open").onclick=()=>EditorAPI.openFile();
+$("folder").onclick=()=>EditorAPI.openFolder();
+$("new").onclick=()=>EditorAPI.newFile();
+$("save").onclick=()=>EditorAPI.saveFile();
+$("saveAs").onclick=()=>EditorAPI.saveFile(true);
+</script>
 </body>
 </html>
