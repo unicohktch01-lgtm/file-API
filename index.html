@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EditorAPI テスト</title>
+</head>
+<body>
+  <h2>ファイル操作API テスト</h2>
+
+  <button id="open">ファイルを開く</button>
+  <button id="folder">フォルダを開く</button>
+  <button id="save">名前を付けて保存</button>
+  <button id="overwrite">上書き保存</button>
+
+  <p id="status">準備完了</p>
+  <textarea id="editor" rows="18" cols="80"
+    placeholder="ここにコードを入力"></textarea>
+
+  <script src="./editor-api.js"></script>
+  <script>
+    const editor = document.getElementById("editor");
+    const status = document.getElementById("status");
+
+    let currentHandle = null;
+
+    document.getElementById("open").onclick = async () => {
+      try {
+        const result = await EditorAPI.openFile();
+
+        if (!result) return;
+
+        editor.value = result.text;
+        currentHandle = result.handle || null;
+        status.textContent = "開いたファイル: " + result.name;
+      } catch (error) {
+        status.textContent = "読み込みエラー: " + error.message;
+      }
+    };
+
+    document.getElementById("folder").onclick = async () => {
+      try {
+        const result = await EditorAPI.openFolder();
+
+        if (!result) return;
+
+        status.textContent =
+          result.name + "： " + result.files.length + " ファイル";
+
+        console.table(result.files.map(file => ({
+          name: file.name,
+          path: file.path || file.name,
+          size: file.size
+        })));
+      } catch (error) {
+        status.textContent = "フォルダエラー: " + error.message;
+      }
+    };
+
+    document.getElementById("save").onclick = async () => {
+      try {
+        const result = await EditorAPI.saveFile(editor.value, {
+          suggestedName: "main.js",
+          mimeType: "text/javascript"
+        });
+
+        if (!result) return;
+
+        currentHandle = result.handle || null;
+        status.textContent = "保存完了: " + result.name;
+      } catch (error) {
+        status.textContent = "保存エラー: " + error.message;
+      }
+    };
+
+    document.getElementById("overwrite").onclick = async () => {
+      if (!currentHandle) {
+        status.textContent = "先に対応ブラウザでファイルを開いてね。";
+        return;
+      }
+
+      try {
+        const result = await EditorAPI.saveFile(editor.value, {
+          handle: currentHandle
+        });
+
+        if (result) {
+          status.textContent = "上書き保存完了: " + result.name;
+        }
+      } catch (error) {
+        status.textContent = "保存エラー: " + error.message;
+      }
+    };
+  </script>
+</body>
+</html>
