@@ -1,0 +1,616 @@
+
+/* ===== 基本設定 ===== */
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --panel-hover: #2d2d30;
+  --border: #3c3c3c;
+  --text: #d4d4d4;
+  --muted: #858585;
+  --accent: #007acc;
+  --accent-light: #4daafc;
+  --folder: #dcb76a;
+  --file: #82b6df;
+  --success: #4ec9b0;
+  --danger: #f14c4c;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* ===== ボタン ===== */
+button {
+  padding: 7px 12px;
+  background: #333337;
+  color: var(--text);
+  border: 1px solid #454545;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover {
+  background: #45454a;
+  border-color: #666;
+}
+
+button:active {
+  background: var(--accent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+/* ===== 上部ツールバー ===== */
+.toolbar {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid #151515;
+}
+
+.brand {
+  margin-right: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ===== メインレイアウト ===== */
+#layout {
+  display: flex;
+  height: calc(100vh - 72px);
+  min-height: 0;
+}
+
+#sidebar {
+  width: 250px;
+  min-width: 140px;
+  flex-shrink: 0;
+  overflow: auto;
+  background: var(--panel);
+  border-right: 1px solid #111;
+}
+
+.side-title {
+  padding: 14px 12px;
+  color: #bbbbbb;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ===== ファイルツリー ===== */
+#tree {
+  padding-bottom: 12px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 5px 9px 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.12s;
+}
+
+.tree-row:hover {
+  background: var(--panel-hover);
+}
+
+.tree-row.selected {
+  background: #37373d;
+  color: #fff;
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-icon {
+  color: var(--folder);
+}
+
+.file-icon {
+  color: var(--file);
+}
+
+/* ===== エディタとタブ ===== */
+#workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+#tabs {
+  display: flex;
+  flex-shrink: 0;
+  height: 39px;
+  overflow-x: auto;
+  background: var(--panel);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 100px;
+  max-width: 220px;
+  padding: 0 13px;
+  color: #999;
+  background: #2d2d2d;
+  border-right: 1px solid #1b1b1b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #ddd;
+  background: #333;
+}
+
+.tab.active {
+  color: #fff;
+  background: var(--bg);
+  border-top: 2px solid var(--accent-light);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-tab {
+  color: #888;
+  cursor: pointer;
+}
+
+.close-tab:hover {
+  color: #fff;
+}
+
+/* ===== コード入力エリア ===== */
+#editor {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 18px;
+  background: var(--bg);
+  color: #d4d4d4;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  caret-color: #fff;
+}
+
+#editor::placeholder {
+  color: #666;
+}
+
+/* 選択中の文字 */
+#editor::selection {
+  background: #264f78;
+}
+
+/* ===== 空の画面 ===== */
+#empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+#empty h2 {
+  color: #aaa;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+#empty p {
+  line-height: 1.8;
+}
+
+/* ===== ステータスバー ===== */
+#status {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* ===== スクロールバー ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #555 #252526;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #252526;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border: 2px solid #252526;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* ===== スマートフォン対応 ===== */
+@media (max-width: 650px) {
+  .toolbar {
+    gap: 4px;
+    padding: 5px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: none;
+  }
+
+  button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  #sidebar {
+    width: 140px;
+    min-width: 110px;
+  }
+
+  #editor {
+    padding: 10px;
+    font-size: 12px;
+  }
+}
+
+/* ===== 基本設定 ===== */
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --panel-hover: #2d2d30;
+  --border: #3c3c3c;
+  --text: #d4d4d4;
+  --muted: #858585;
+  --accent: #007acc;
+  --accent-light: #4daafc;
+  --folder: #dcb76a;
+  --file: #82b6df;
+  --success: #4ec9b0;
+  --danger: #f14c4c;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* ===== ボタン ===== */
+button {
+  padding: 7px 12px;
+  background: #333337;
+  color: var(--text);
+  border: 1px solid #454545;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover {
+  background: #45454a;
+  border-color: #666;
+}
+
+button:active {
+  background: var(--accent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+/* ===== 上部ツールバー ===== */
+.toolbar {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid #151515;
+}
+
+.brand {
+  margin-right: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ===== メインレイアウト ===== */
+#layout {
+  display: flex;
+  height: calc(100vh - 72px);
+  min-height: 0;
+}
+
+#sidebar {
+  width: 250px;
+  min-width: 140px;
+  flex-shrink: 0;
+  overflow: auto;
+  background: var(--panel);
+  border-right: 1px solid #111;
+}
+
+.side-title {
+  padding: 14px 12px;
+  color: #bbbbbb;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ===== ファイルツリー ===== */
+#tree {
+  padding-bottom: 12px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 5px 9px 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.12s;
+}
+
+.tree-row:hover {
+  background: var(--panel-hover);
+}
+
+.tree-row.selected {
+  background: #37373d;
+  color: #fff;
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-icon {
+  color: var(--folder);
+}
+
+.file-icon {
+  color: var(--file);
+}
+
+/* ===== エディタとタブ ===== */
+#workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+#tabs {
+  display: flex;
+  flex-shrink: 0;
+  height: 39px;
+  overflow-x: auto;
+  background: var(--panel);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 100px;
+  max-width: 220px;
+  padding: 0 13px;
+  color: #999;
+  background: #2d2d2d;
+  border-right: 1px solid #1b1b1b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #ddd;
+  background: #333;
+}
+
+.tab.active {
+  color: #fff;
+  background: var(--bg);
+  border-top: 2px solid var(--accent-light);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-tab {
+  color: #888;
+  cursor: pointer;
+}
+
+.close-tab:hover {
+  color: #fff;
+}
+
+/* ===== コード入力エリア ===== */
+#editor {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 18px;
+  background: var(--bg);
+  color: #d4d4d4;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  caret-color: #fff;
+}
+
+#editor::placeholder {
+  color: #666;
+}
+
+/* 選択中の文字 */
+#editor::selection {
+  background: #264f78;
+}
+
+/* ===== 空の画面 ===== */
+#empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+#empty h2 {
+  color: #aaa;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+#empty p {
+  line-height: 1.8;
+}
+
+/* ===== ステータスバー ===== */
+#status {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* ===== スクロールバー ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #555 #252526;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #252526;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border: 2px solid #252526;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* ===== スマートフォン対応 ===== */
+@media (max-width: 650px) {
+  .toolbar {
+    gap: 4px;
+    padding: 5px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: none;
+  }
+
+  button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  #sidebar {
+    width: 140px;
+    min-width: 110px;
+  }
+
+  #editor {
+    padding: 10px;
+    font-size: 12px;
+  }
+}
